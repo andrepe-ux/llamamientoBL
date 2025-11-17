@@ -115,50 +115,34 @@ function getContratoText(tipoRaw){
   const tipo = (tipoRaw||'').toString().trim();
   const t = tipo.toLowerCase();
 
-  // TT variantes
-  if(t.includes('tt - lunes a domingo') || t.includes('tt - lunes a domingo'.replace(/\s/g,'')) || t === 'tt') {
-    // prefer explicit strings if present
-    if(t.includes('lunes a domingo')) return '40 horas semanales distribuidas de Lunes a Domingo';
+  if(t.includes('tt - lunes a domingo') || t === 'tt') {
+    return '40 horas semanales distribuidas de Lunes a Domingo';
   }
-  if(t.includes('tt - lunes a sabado') || t.includes('tt - lunes a sábado') || t.includes('lunes a sabado')) {
+  if(t.includes('tt - lunes a sabado') || t.includes('lunes a sábado')) {
     return '40 horas semanales distribuidas de Lunes a Sábado';
   }
-  if(t.includes('tt - domingo a viernes') || t.includes('domingo a viernes')) {
+  if(t.includes('domingo a viernes')) {
     return '40 horas semanales distribuidas de Domingo a Viernes';
   }
 
-  // TP30 específico
-  if(t.includes('tp 30') || t.includes('tp30')){
-    if(t.includes('lunes') && t.includes('jueves') && t.includes('viernes') && t.includes('domingo')) {
-      return '30 horas semanales distribuidas en Lunes, Jueves, Viernes y Domingo';
-    }
+  if(t.includes('tp30')){
+    return '30 horas semanales distribuidas en Lunes, Jueves, Viernes y Domingo';
   }
 
-  // TP 22,5 varias combinaciones
-  if(t.includes('tp 22') || t.includes('tp22') || t.includes('22,5') || t.includes('22.5')){
-    if(t.includes('lunes') && t.includes('viernes') && (t.includes('sabado') || t.includes('sábado'))) return '22,5 horas semanales distribuidas en Lunes, Viernes y Sábado';
+  if(t.includes('tp22')){
+    if(t.includes('lunes') && t.includes('viernes') && t.includes('sábado')) return '22,5 horas semanales distribuidas en Lunes, Viernes y Sábado';
     if(t.includes('lunes') && t.includes('viernes') && t.includes('domingo')) return '22,5 horas semanales distribuidas en Lunes, Viernes y Domingo';
-    if(t.includes('lunes') && (t.includes('sabado') || t.includes('sábado')) && t.includes('domingo')) return '22,5 horas semanales distribuidas en Lunes, Sábado y Domingo';
-    if(t.includes('jueves') && t.includes('viernes') && (t.includes('sabado') || t.includes('sábado'))) return '22,5 horas semanales distribuidas en Jueves, Viernes y Sábado';
-    if(t.includes('jueves') && t.includes('viernes') && t.includes('domingo')) return '22,5 horas semanales distribuidas en Jueves, Viernes y Domingo';
   }
 
-  // TP15 combinaciones
-  if(t.includes('tp 15') || t.includes('tp15')){
-    if(t.includes('viernes') && (t.includes('sabado') || t.includes('sábado'))) return '15 horas semanales distribuidas en Viernes y Sábado';
+  if(t.includes('tp15')){
+    if(t.includes('viernes') && t.includes('sábado')) return '15 horas semanales distribuidas en Viernes y Sábado';
     if(t.includes('viernes') && t.includes('domingo')) return '15 horas semanales distribuidas en Viernes y Domingo';
-    return '15 horas semanales distribuidas en (ver turno)';
   }
-
-  // Caixas típicas
-  if(tipo === 'TT') return '40 horas semanales distribuidas durante toda la semana';
-  if(tipo === 'TP15') return '15 horas semanales distribuidas en (los días marcados en la celda)';
-  if(tipo === 'TP20 - 3 días a la semana') return '20 horas semanales distribuidas en Lunes, Martes, Sábado';
 
   return tipo || '';
 }
 
-/* --- Gera o corpo do e-mail incluindo Turno (se presente) --- */
+/* --- Gera o corpo do e-mail --- */
 function generateEmail(emp, link){
   let texto = '';
   emp.periodos.forEach(p=>{
@@ -167,33 +151,28 @@ function generateEmail(emp, link){
     texto += `‒ En el Centro de trabajo ubicado en: ${p.direccion}, ${p.poblacion}.\n`;
     texto += `‒ Tu Coordinador será ${p.coordinador}.\n\n`;
   });
-  const body = `¡Hola ${emp.nome}!\n\nNos ponemos en contacto contigo para informarte sobre tu próximo periodo de actividad como trabajador Fijo Discontinuo de Mercadona.\n\nTe detallamos los datos de tu incorporación:\n\n${texto}¿Qué necesitamos saber?\nTe pedimos que completes el siguiente formulario (máximo 7 días) donde podrás:\n• Confirmar tu disponibilidad para reincorporarte en las fechas indicadas.\n• Rechazar el llamamiento si no estás interesado en seguir formando parte del equipo.\n• Informar cambios de disponibilidad y contactar con RRHH.\n\nPuedes acceder al formulario pinchando aquí:\n${link}\n\nAdemás, te informamos que en Activo2, podrás consultar el horario, a partir del día 20 del mes anterior a tu incorporación.\n\nSi cambia tu situación personal que pueda afectar a la organización del centro, rogamos lo comuniques a la mayor brevedad posible.`;
+  const body = `¡Hola ${emp.nome}!\n\nNos ponemos en contacto contigo para informarte sobre tu próximo periodo de actividad como trabajador Fijo Discontinuo de Mercadona.\n\nTe detallamos los datos de tu incorporación:\n\n${texto}¿Qué necesitamos saber?\nTe pedimos que completes el siguiente formulario (máximo 7 días).\n\n${link}`;
   return { to: emp.correo, subject: 'Información sobre tu próximo periodo', body };
 }
 
-/* --- Export CSV para mail merge --- */
-function exportToCSVMailMerge(emails){
+/* --- EXPORTAÇÃO PARA XLSX (NOVO) --- */
+function exportToXLSXMailMerge(emails){
   if(emails.length===0) return alert('Ningún email procesado.');
-  const separator = pais==='portugal'?';':',';
-  const csvHeader=['Email','Subject','Body'];
-  const csvRows = emails.map(e=>{
-    const to = `"${(e.to||'').replace(/"/g,'""')}"`;
-    const subject = `"${(e.subject||'').replace(/"/g,'""')}"`;
-    const body = `"${(e.body||'').replace(/"/g,'""')}"`;
-    return [to,subject,body].join(separator);
-  });
-  const csvContent = [csvHeader.join(separator), ...csvRows].join('\r\n');
-  const bom = new Uint8Array([0xEF,0xBB,0xBF]);
-  const blob = new Blob([bom,csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'correos.csv';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  const data = emails.map(e => ({
+    Email: e.to,
+    Subject: e.subject,
+    Body: e.body
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Correos");
+
+  XLSX.writeFile(workbook, "correos.xlsx");
 }
 
-/* --- Botão Procesar (com validação do Forms Google obrigatório) --- */
+/* --- Botão Procesar --- */
 document.getElementById('processBtn').onclick = () => {
   const link = document.getElementById('userLink').value.trim();
   if(!link) return alert('Por favor, introduce un vínculo válido de Forms Google antes de procesar.');
@@ -208,7 +187,6 @@ document.getElementById('processBtn').onclick = () => {
     const zonero = wb.Sheets['Zonero'];
     if(!pedido || !prod || !zonero) return alert('Faltan hojas obligatorias.');
 
-    /* --- Leitura e mapeamentos --- */
     const rowsP = XLSX.utils.sheet_to_json(pedido, { header:1 });
     const headers = rowsP[0] || [];
     const data = rowsP.slice(1);
@@ -216,7 +194,6 @@ document.getElementById('processBtn').onclick = () => {
     const colEmp = headers.findIndex(h => normalizeText(h).includes('empleado'));
     const colTipo = headers.findIndex(h => normalizeText(h).includes('tipo de contrato'));
     const colNombreCoordinadorPedido = headers.findIndex(h => normalizeText(h).includes('nombre coordinador'));
-    // Novo: colunas de turno por padrão começam por 'turno'
     const turnoCols = headers.map((h,i)=>({h,i})).filter(x=>normalizeText(x.h).startsWith('turno'));
 
     const filtered = data.filter(r => r[colEmp]);
@@ -227,7 +204,8 @@ document.getElementById('processBtn').onclick = () => {
     const colId = hp.findIndex(h => normalizeText(h).includes('num empleado'));
     const colNome = hp.findIndex(h => normalizeText(h).includes('nombre'));
     const colMail = hp.findIndex(h => normalizeText(h).includes('correo'));
-    const prodMap = {}; dp.forEach(r => {
+    const prodMap = {};
+    dp.forEach(r => {
       const id = normalizeText(r[colId]);
       if(id) prodMap[id] = { nome: r[colNome]||'', mail: r[colMail]||'' };
     });
@@ -245,13 +223,11 @@ document.getElementById('processBtn').onclick = () => {
       if(id) zoneroMap[id] = { dir: r[colD]||'', pob: r[colP]||'', co: r[colCoZonero]||'' };
     });
 
-    /* --- Identificar colunas de fechas/centro/tipo por padrão --- */
     const fiCols = headers.map((h,i)=>({h,i})).filter(x=>normalizeText(x.h).startsWith('fecha inicio'));
     const ffCols = headers.map((h,i)=>({h,i})).filter(x=>normalizeText(x.h).startsWith('fecha fin'));
     const ceCols = headers.map((h,i)=>({h,i})).filter(x=>normalizeText(x.h).startsWith('centro'));
     const tcCols = headers.map((h,i)=>({h,i})).filter(x=>normalizeText(x.h).startsWith('tipo de contrato'));
 
-    /* --- Combinar --- */
     const combined = {};
     filtered.forEach(r => {
       const id = normalizeText(r[colEmp]);
@@ -260,25 +236,17 @@ document.getElementById('processBtn').onclick = () => {
 
       for(let i=0;i<fiCols.length;i++){
         const fi = formatDate(r[fiCols[i].i]);
-        const ff = formatDate(ffCols[i] ? r[ffCols[i].i] : '');
+        const ff = formatDate(r[ffCols[i].i]);
         const ce = r[ceCols[i].i] || '';
-        // tipo pode estar na coluna do período (tcCols[i]) ou na coluna global colTipo
         let tc = (r[tcCols[i]?.i] || r[colTipo] || '') .toString().trim();
 
-        // Turno: agora provém de uma coluna "turno" associada ao período (turnoCols[i]) se existir
-        let turnoVal = '';
-        if(turnoCols[i]) turnoVal = (r[turnoCols[i].i] || '').toString().trim();
+        let turnoVal = turnoCols[i] ? (r[turnoCols[i].i] || '').toString().trim() : '';
 
-        // obter descrição contratual
-        const contrato = (tc && tc.length>0) ? getContratoText(tc) : getContratoText(r[colTipo]);
+        const contrato = getContratoText(tc);
 
-        // Coordenador: preferir a coluna "Nombre Coordinador" em Pedido; se ausente usar Zonero
-        let coordPedidoVal = '';
-        if(colNombreCoordinadorPedido !== -1){
-          coordPedidoVal = r[colNombreCoordinadorPedido] || '';
-        }
+        let coordPedidoVal = colNombreCoordinadorPedido !== -1 ? (r[colNombreCoordinadorPedido] || '') : '';
         const z = zoneroMap[normalizeText(ce)] || { dir:'', pob:'', co:'' };
-        const coordinadorFinal = (coordPedidoVal && coordPedidoVal.toString().trim()) ? coordPedidoVal.toString().trim() : (z.co || '');
+        const coordinadorFinal = coordPedidoVal.trim() !== '' ? coordPedidoVal : z.co;
 
         if(fi || ff) combined[id].periodos.push({
           fechaInicio: fi,
@@ -293,10 +261,8 @@ document.getElementById('processBtn').onclick = () => {
       }
     });
 
-    /* --- Render tabla resultados (Turno logo depois do Tipo de contrato) --- */
     let html = `<h2 class='text-xl font-bold mb-2'>Datos Combinados por Trabajador</h2>`;
     html += `<div class='overflow-x-auto'><table class='min-w-full border border-gray-300 text-sm'><thead class='bg-gray-200'><tr>`;
-    // Ordem: ... Fecha Fin, Tipo de contrato, Turno, Centro ...
     ['#','Empleado','Nombre','Correo','Nº de períodos','Fecha Inicio','Fecha Fin','Tipo de contrato','Turno','Centro','Dirección','Población','Coordinador'].forEach(h=>html+=`<th class='border px-2 py-1'>${h}</th>`);
     html += `</tr></thead><tbody>`;
 
@@ -305,6 +271,7 @@ document.getElementById('processBtn').onclick = () => {
     Object.values(combined).forEach(emp=>{
       const numPeriodos = emp.periodos.length || 1;
       if(emp.periodos.length === 0) emp.periodos.push({fechaInicio:'-',fechaFin:'-',centro:'-',direccion:'-',poblacion:'-',coordinador:'-',tipoContrato:'-',turno:''});
+
       emp.periodos.forEach((p,i)=>{
         html += `<tr class='${i%2===0?'bg-white':'bg-gray-50'} hover:bg-gray-100'>`;
         if(i===0) html += `<td class='border px-2 py-1' rowspan='${numPeriodos}'>${counter}</td>`;
@@ -315,7 +282,7 @@ document.getElementById('processBtn').onclick = () => {
         html += `<td class='border px-2 py-1'>${p.fechaInicio}</td>`;
         html += `<td class='border px-2 py-1'>${p.fechaFin}</td>`;
         html += `<td class='border px-2 py-1'>${p.tipoContrato}</td>`;
-        html += `<td class='border px-2 py-1'>${p.turno || '-'}</td>`; // Turno imediatamente depois do Tipo de contrato
+        html += `<td class='border px-2 py-1'>${p.turno || '-'}</td>`;
         html += `<td class='border px-2 py-1'>${p.centro}</td>`;
         html += `<td class='border px-2 py-1'>${p.direccion}</td>`;
         html += `<td class='border px-2 py-1'>${p.poblacion}</td>`;
@@ -327,7 +294,6 @@ document.getElementById('processBtn').onclick = () => {
     });
     html += `</tbody></table></div>`;
 
-    /* --- Exibir blocos de e-mails --- */
     let emailsHtml = '<div id="emailsContainer" class="hidden space-y-4 mt-6">';
     allEmails.forEach(e=>{
       emailsHtml += `<div class='p-3 border rounded bg-gray-50'><p><strong>Para:</strong> ${e.to||'<em>sin email</em>'}</p><p><strong>Asunto:</strong> ${e.subject}</p><pre class='whitespace-pre-wrap'>${e.body}</pre></div>`;
@@ -337,9 +303,16 @@ document.getElementById('processBtn').onclick = () => {
     document.getElementById('resultado').innerHTML = html + emailsHtml;
     document.getElementById('toggleEmails').classList.remove('hidden');
     document.getElementById('exportCSV').classList.remove('hidden');
-    document.getElementById('toggleEmails').onclick = () => { document.getElementById('emailsContainer').classList.toggle('hidden'); };
-    document.getElementById('exportCSV').onclick = () => { exportToCSVMailMerge(allEmails); };
+
+    document.getElementById('toggleEmails').onclick = () => { 
+      document.getElementById('emailsContainer').classList.toggle('hidden'); 
+    };
+
+    document.getElementById('exportCSV').onclick = () => { 
+      exportToXLSXMailMerge(allEmails); 
+    };
   };
+
   reader.readAsArrayBuffer(file);
 };
 </script>
